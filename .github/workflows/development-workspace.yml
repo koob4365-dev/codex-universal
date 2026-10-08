@@ -1,0 +1,29 @@
+name: Development workspace
+on:
+  pull_request:
+    paths: ['.devcontainer/**', '.github/workflows/development-workspace.yml']
+  push:
+    branches: ['codex/development-workspace']
+    paths: ['.devcontainer/**', '.github/workflows/development-workspace.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate configuration
+        run: |
+          python3 -m json.tool .devcontainer/devcontainer.json >/dev/null
+          bash -n .devcontainer/doctor.sh
+          shellcheck .devcontainer/doctor.sh
+      - name: Build development container
+        run: docker build -t codex-development-workspace .devcontainer
+      - name: Check installed tools as non-root user
+        run: >-
+          docker run --rm --entrypoint bash
+          --mount type=bind,src="$PWD",dst=/workspace/project,readonly
+          --workdir /workspace/project
+          codex-development-workspace .devcontainer/doctor.sh
